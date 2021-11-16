@@ -19,11 +19,11 @@ Our report should be read in the following order:
 * 01
 * 02-Detecting_New_Attacks
 
-The HTML output of the Rmd files is included.
+The HTML output of the Rmd file is included.
 
 ## Requirements
 
-Requirements for the Rmd files are included within each script.
+Requirements for the Rmd file is in the script.
 
 Requirements for the Python _____ .
 
