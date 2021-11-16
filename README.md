@@ -6,7 +6,7 @@ Analysis of the KDD cup data set.
 * Bill
 * Mo
 
-With ___ equity.
+With equal equity.
 
 ## Reading Order
 
@@ -16,9 +16,8 @@ All report content is in the directory:
 
 Our report should be read in the following order:
 
-* 1
-* 2
-* 3
+* 01
+* 02-Detecting_New_Attacks
 
 The HTML output of the Rmd files is included.
 
