@@ -1,0 +1,338 @@
+---
+title: "Part 2 - Detecting New Attacks"
+author: "Bill"
+date: "15/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(solitude)
+library(ranger)
+library(ggplot2)
+library(ks)
+library(e1071)
+```
+
+### Section 2.1 - The Bridge
+
+In Mo's excellent analysis we saw that the classifiers typically performed worse on attacks which had been withheld from the training set. Furthermore, Mo identified a list of attacks on which the performance drop off was particularly pronounced:
+
+```{r}
+mos_list <- c("land", "warezmaster", "imap", "rootkit", "loadmodule",
+              "ftp_write", "multihop", "phf", "perl", "spy")
+```
+
+We now imagine ourselves in the situation where we've never seen any of the attacks in Mo's list before, we can't use them in our training set, and therefore our classifiers struggle to recognise these new attacks are attacks. I would like to explore a few methods from the machine learning area broadly known as anomaly detection, and see how we fair picking up the new attacks.
+
+We shall consider two toy sub-cases of the above situation:
+
+1. We have no set of data which we can know is all benign. This condition is effectively equivalent to being totally unsure of our labels, and we therefore have to rely on unsupervised machine learning methods. For the first sub-case (Section 2.3) Isolation Forests will be used.
+
+2. We have some set of data which we know is all benign- perhaps the attackers have developed a fresh personal vendetta and really upped the ante with new attacks, but before then we had gathered a sure set of benign data. In the second sub-case (Section 2.4) we try out some semi-supervised methods. Kernel Density Estimates, and one-class SVMs will be tried.
+
+I'm quite sure that a 'blur' of our sub-cases would've lead us to some fascinating methods. By 'blur' I mean the case in which we have some set of data with a variable which estimates our confidence that the data is benign. There simply wasn't time.
+
+### Section 2.2 - Getting and Formatting the Data
+
+We fetch the data and column names straight from the KDD cup web page (to ensure other people can verily knit this document from the Rmd).
+
+```{r}
+con <- gzcon(url("http://kdd.ics.uci.edu/databases/kddcup99/kddcup.data_10_percent.gz"))
+txt <- readLines(con)
+df <- read.csv(textConnection(txt), header = F)
+rm(con, txt)
+
+cn <- read.csv(url("http://kdd.ics.uci.edu/databases/kddcup99/kddcup.names"))[,1]
+```
+
+The dots at the end of each entry of `cn` are very irritating so we get rid of them and then make `cn` the column names of our data frame.
+
+```{r}
+for(i in 1:41){
+  cn[i] = substr(cn[i], 1, nchar(cn[i]) - 1)
+}
+rm(i)
+cn <- c(cn, 'connection_type: symbolic')
+colnames(df) <- cn
+```
+
+There are yet more dots to deal with, this time in the `connection_type: symbolic` column.
+
+```{r}
+for(i in unique(df$`connection_type: symbolic`)){
+  df <- df %>%
+    mutate(`connection_type: symbolic` = 
+             replace(`connection_type: symbolic`,
+                     `connection_type: symbolic` == i,
+                     substr(i, 1, nchar(i) - 1)))
+}
+rm(i)
+```
+
+Now we can add an `is_benign: symbolic` column using `mutate`. Where `benign` indicates the connection was benign, and `attack` indicates the connection was an attack.
+
+```{r}
+df <- df %>% 
+      mutate(`is_benign: symbolic` =
+             case_when(`connection_type: symbolic` == "normal" ~ "benign",
+                       `connection_type: symbolic` != "normal" ~ "attack"))
+```
+
+We add `is_benign: symbolic` to `cn`. During my exploratory data analysis I noticed that two of the columns were uniformly zero, we remove these columns. Secondly, we make the `is_benign: symbolic` into a factor. Lastly we call `data.frame` on `df`. This slightly alters the column names so that the colons don't cause bugs later on.
+
+```{r}
+cn <- c(cn, "is_benign: symbolic")
+cn <- cn[cn != "num_outbound_cmds: continuous"]
+cn <- cn[cn != "is_host_login: symbolic"]
+df <- df[, cn]
+
+df$`is_benign: symbolic` <- as.factor(df$`is_benign: symbolic`)
+
+df <- data.frame(df)
+cn <- colnames(df)
+```
+
+Finally we throw away all traffic which isn't `benign` or in `mos_list`, and have a set of data we can begin working with.
+
+```{r}
+x <- c()
+for(i in c("normal", mos_list)){
+  x <- c(x, rownames(df[which(df$`connection_type..symbolic` == i),]))
+}
+df <- df[x,]
+rm(x, i)
+```
+
+Great! We can now get going properly.
+
+### Section 2.3 - The First Sub-Case
+
+Recall that for the first sub-case we assumed that our data is effectively unlabeled. It seems reasonable to suppose that the quantity of benign data far exceeds the quantity of attack data and thus, when the data set is considered as a whole, the attack data present as outliers. We use an Isolation Forest to determine which points are outliers, and then guess that these points are attacks. We verify the assertion that in this case the quantity of the attacks is far exceeded by the quantity of benign data:
+
+```{r}
+table(df[,41])
+```
+
+Of course, it may be unreasonable to assume the quantity of benign data far exceeds the quantity of attack data, if one of the new attacks was DDOS for example, and then our outlier argument falls flat. In this case a clustering method would be far more appropriate.
+
+To pick up the outliers we invoke an Isolation Forest from the package `solitude`. Isolation Forests aren't sensitive to data scaling and we may therefore proceed right away! 
+
+```{r, results = 'hide'}
+isf <- isolationForest$new(sample_size = 1024, num_trees = 100, seed = 1)
+isf$fit(df[,-c(40, 41)])
+
+df$prediction <- isf$predict(df)
+```
+
+Let's take a quick look at what the `prediction` variable (it's actually a nested dataframe) tells us.
+
+```{r}
+head(df$prediction)
+```
+
+The `prediction` gives us `average_depth` and `anomaly_score` variables. We know from the original paper [1] describing the method (which the `solitude` package closely follows) that `anomaly_score` is calculated using `average_depth` exclusively. The intuition being that outliers should be totally isolated by the 'extremely randomised trees' without needing to go so deep. We also know that 10 is the maximum possible `average_depth`, we used the original paper's recommendation of a maximum tree depth equal to logarithm base two of our sample size which I set equal to 1024 when calling `isolationForest`. An `average_depth` of 10 indicates that all 100 of our trees failed to isolate the point. It turns out that points with `average_depth` of 10 are common (hopefully these are all benign), the minimum `average_depth` is:
+
+```{r}
+min(df$prediction$average_depth)
+```
+
+Now that we've seen the range of `average_depth` I want to visualise how `average_depth` varies between the benign data and the attacks in Mo's list. We do so by plotting the CDFs for the two classes.
+
+```{r}
+ifbcd <- df[which(df$connection_type..symbolic == "normal"),]$
+  prediction$average_depth %>% 
+  ecdf()
+ifbcd %>% plot(main = "Depth Cumulative Denisty for Benign",
+        xlim = c(5, 10))
+
+
+ifacd <- df[which(df$connection_type..symbolic != "normal"),]$
+  prediction$average_depth %>%
+  ecdf()
+ifacd %>% plot(main = "Depth Cumulative Density for Attack",
+        xlim = c(5, 10))
+```
+
+These plots show that the process has worked, at least qualitatively. We still have the major problem of false positives given our benign data is so much more frequent. Let's investigate whether the output of our Isolation Forest could have been at all useful in spite of the false positives.
+
+```{r}
+plot(5+0.01*1:500, ifacd(5+0.01*1:500)/ ifbcd(5+0.01*1:500),
+     main = "Ratio of Attack Depth CDF to Benign Depth CDF",
+     xlab = "Average Depth",
+     ylab = "CDF Ratio")
+```
+
+We see that if we had got lucky and chosen our cutoff point somewhere between 6.5 and 7.5 we would have got a CDF ratio of around 600. This is very similar in magnitude to the number of benign data over the number of attack data, and thus if we chose a cutoff in this range around half the data flagged as anomalous would be a true positive. This really isn't great, but it could form the backbone for improving Mo's classifiers. I envision a scheme where experts could trawl through the greatly reduced data flagged as anomalous by the Isolation Forest, verify whether it's indeed a true positive, and then feed the verified data back to Mo to improve his training sets.
+
+Before beginning the next section we remove the Isolation Forest and it's predictions from `df`:
+
+```{r}
+rm(isf)
+df <- df[,1:41]
+```
+
+### Section 2.4 - The Second Sub-Case
+
+Recall that in the second sub-case we assumed that we have a set of data we are confident is all benign. Again we want to classify a data point as an attack if it presents as an outlier. Unlike the first sub-case however, it doesn't matter about the quantity of attack data because we train exclusively on the certain benign data. We try two, similar methods of outlier detection. The first method estimates density of our benign training set and we classify test data lying in regions below a given density threshold as anomalous. The second method arrives at a decision boundary via support vector machines and the ever-cheeky kernel trick. The inventor of SVMs, Vladimir Vapnik, regarded his method as more philosophically elegant [2]- we find a decision boundary without needing to solve the more 'difficult' problem of calculating the density and working 'backwards' from there.
+
+Let's sample the benign data and suppose that this is the set of data we are confident is all benign:
+
+```{r}
+set.seed(1)
+
+train_rows <-
+rownames(df[which(df$is_benign..symbolic == "benign"),]) %>% 
+  sample(30000, replace = FALSE)
+                                                                  
+
+test_rows <- setdiff(rownames(df), train_rows)
+```
+
+We now want to embed the training data in real space such that each variable is comparably scaled, as neither method is likely to work if this is not the case. I made the decision to keep only the continuous variables and the run a PCA (with scaling) on the training set mainly due to running out of time: apologies. Given more time, my scaling would have been more tailored to the data set, I know Mo found success with log scaling, also I would have like to experiment with encodings the discrete variables. 
+
+```{r}
+cts <- c()
+for(i in cn){
+  if(grepl("continuous", i, fixed = TRUE)){
+    cts <- c(cts, i)
+  }
+}
+rm(i)
+
+cts <- cts[cts != "wrong_fragment..continuous"]
+
+train <- df[train_rows, cts]
+test <- df[test_rows, cts]
+```
+
+We remove `wrong_fragment..continuous` as it is uniformly zero on the training set, thus can't be scaled when the PCA pre-scaling is applied.
+
+```{r}
+pca <- prcomp(train, scale = TRUE)
+plot(pca, type = "l", main = "Variance Explained
+     per Principle Component")
+
+train <- data.frame(pca$x)[,1:15]
+test <- data.frame(predict(pca, newdata = test))[,1:15]
+
+ggplot(data.frame(pca$x[1:3000,]), aes(PC1, PC2)) +
+  geom_point(shape = 21, col = "black")
+```
+
+Note that we applied PCA to just the training set and then projected the test set onto the principle components found, this is to simulate data handling in a situation where the test set is incoming data. We keep the first 15 principle components as these explain the majority of the variance. We finally have data we can use for kernel density estimates.
+
+Before running some tests in the background, I had failed to anticipate the true horror of determining appropriate kernel bandwidths for high dimensional data [3]. It's a bit of a cop out, but we limit ourselves to estimating the density for only the first two dimensions, we thus have a nice way to visually assess our density estimates by plotting. Our data clearly doesn't follow an obvious density and so to capture the finer structure I employ a slight variation of the trick presented in the DST block 04 reference code- I first round the data and then use a single kernel for every point which rounds to the same value. I suppose it's a bit fallacious to call the result of this a kernel density estimate, but I wasn't aware of an alternative name.
+
+```{r}
+t <- train[,1:2]
+t <- t %>% round(digits = 1)
+t <- unique(t)
+
+kde <- kde(x = t, H = diag(c(0.25, 0.25)), gridsize = c(1000, 1000))
+image(kde$eval.points[[1]], kde$eval.points[[2]], kde$estimate,
+      col = viridis::viridis(20), xlab = "PC1", ylab = "PC2",
+      xlim = c(-5, 12), ylim = c(-6,12))
+```
+
+This looks to be a fair representation of our data. We now predict the density at each point in our `test` set, making sure we remember to round first.
+
+```{r}
+p <- test[,1:2] %>% round(digits = 1)
+prediction <- predict(kde, x = p)
+test <- cbind(test, prediction)
+rm(p)
+```
+
+To compare the effectiveness of this method with the isolation forest we once again consider the CDFs of the benign and attack class, this time as we vary the `prediction`. We first need to get back whether each data point was benign or an attack:
+
+```{r}
+test <- cbind(test, df[test_rows, 41])
+colnames(test)[17] <- "is_benign"
+```
+
+Now we plot the CDFs for each class.
+
+```{r}
+denbcd <- test[which(test$is_benign == "benign"),]$
+  prediction %>% 
+  ecdf()
+denbcd %>% plot(main = "Prediction Cumulative Denisty for Benign")
+
+denacd <- test[which(test$is_benign == "attack"),]$
+  prediction %>% 
+  ecdf()
+denacd %>% plot(main = "Prediction Cumulative Denisty for Attack")
+```
+
+This is looking promising for very small `prediction` values! Let's investigate the CDF ratio again.
+
+```{r}
+plot(0.00001*1:100, denacd(0.00001*1:100)/denbcd(0.00001*1:100),
+     main = "Ratio of Attack Prediction CDF to Benign Prediction CDF",
+     xlab = "Prediction Value",
+     ylab = "CDF Ratio")
+```
+
+Unfortunately we see the maximum CDF ratio is very similar to that of our isolation forest, and at a slightly smaller true positive rate, it appears that our density based method offers no improvement.
+
+No matter! We clear up our environment and remove the last two rows of test to prepare for one class SVMs.
+
+```{r}
+rm(pca, kde, prediction, t)
+test <- test[, 1:15]
+```
+
+I became very interested in SVMs for anomaly detection after we briefly encountered the idea during the Friday lecture, I therefore took a look at a paper called "Support Vector Data Description" [4] which gives an early description of the method. We saw in the Friday lecture that the decision boundary generated by the one class SVM was a sphere by default. The paper detailed how a spherical boundary resulted from the standard dot product (**unlike** usual SVM classifiers), and that one could attain non-spherical decision boundaries by using the kernel trick. We shall apply the method with a `radial` kernel, and attain a non-spherical decision boundary. The parameter `nu` was decided so that the outputted number of outliers could potentially be directly examined by a human team.
+
+```{r}
+ocsvm <-svm(train,y=NULL,
+               type='one-classification',
+               scale = TRUE,
+               nu=0.001,
+               kernel = "radial")
+
+train_predictions <- predict(ocsvm, train)
+test_predictions <- predict(ocsvm, test)
+
+outcome <- table(test_predictions, df[test_rows, 41])
+rownames(outcome) = c("Outlier", "Not Outlier")
+outcome
+```
+
+This isn't half bad- out of the 564 outliers detected, 78 out of the possible 96 attacks are picked up! Let's find the number of attacks picked up when we set the parameters of the random forest and the density method to attain the 564 most extreme outliers for each method. We find that cutoffs of 8.49 for depth and 0.006 for density very nearly yield the 564 most extreme outliers. Now we see how many of the 564 most extreme outliers attained by our other two methods were attacks:
+
+```{r}
+round(96 * ifacd(8.49), 0)
+round(96 * denacd(0.006),0)
+```
+
+By this metric, which is motivated by the idea of a team of experts scrutinising the 500 or so most extreme outliers, our three methods have the following rank:
+
+1. One class SVMs- 78 out of the 564 outliers were attacks, where the number of attacks was 96.
+
+2. Isolation Forest- 56 out of the 564 outliers were attacks, where the number of attacks was 96.
+
+3. Density Estimation- 41 out of the 564 outliers were attacks, where the number of attacks was 96.
+
+### Section 2.5 - Concluding Remarks
+
+Mo and I's project has taught us both many things about classification and anomaly detection. Mo started us of with extremely thorough cross-validated classifiers on the scaled and labeled dataset. He went on to carefully analyse the effect of withholding certain attacks from the training set, and saw a very significant drop off in classifier performance on the 'new' attacks. I took the baton from here, and although my style was fast and loose compared to Mo's, I presented a range of anomaly detection techniques. We also arrived at a workflow for producing more effective classifiers when in a situation where we have to deal with new attacks:
+
+1. Make powerful classifiers, a la Mo(de!), on the best training set we have available.
+
+2. Run anomaly detection to try and catch any new attacks our classifier wasn't well trained to detect.
+
+3. Examine the resulting outliers to determine if these were in fact attacks.
+
+4. Improve the training set for our classifiers by adding in the true attacks we picked up in the third step.
+
+### Sources
+[1] Fei Tony Liu, Kai Ming Ting, and Zhi-Hua Zhou. 2012. Isolation-Based Anomaly Detection. ACM Trans. Knowl. Discov. Data 6, 1, Article 3 (March 2012), 39 pages. DOI:https://doi.org/10.1145/2133360.2133363
+
+[2] MIT Lecture on SVMs https://www.youtube.com/watch?v=_PwhiWxHK8o 
+
+[3] Altman N, Leger C (1995). “Bandwidth selection for kernel distribution function estimation.” Journal of Statistical Planning and Inference, 46(2), 195–214.
+
+[4] Tax, D.M., Duin, R.P. Support Vector Data Description. Machine Learning 54, 45–66 (2004). https://doi.org/10.1023/B:MACH.0000008084.60811.49
