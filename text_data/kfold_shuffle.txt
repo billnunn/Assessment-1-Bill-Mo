@@ -1,0 +1,211 @@
+---Training model on removing land attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown land attacks): 0.333
+      Total score: 0.666
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown land attacks): 0.333
+      Total score: 0.666
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown land attacks): 0.714
+      Total score: 0.857
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown land attacks): 0.952
+      Total score: 0.976
+      ---
+---Training model on removing warezmaster attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown warezmaster attacks): 1.000
+      Total score: 1.000
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown warezmaster attacks): 0.900
+      Total score: 0.950
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown warezmaster attacks): 0.550
+      Total score: 0.775
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown warezmaster attacks): 0.900
+      Total score: 0.950
+      ---
+---Training model on removing imap attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown imap attacks): 0.583
+      Total score: 0.791
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown imap attacks): 0.667
+      Total score: 0.833
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown imap attacks): 0.583
+      Total score: 0.791
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown imap attacks): 0.750
+      Total score: 0.875
+      ---
+---Training model on removing rootkit attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown rootkit attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown rootkit attacks): 0.100
+      Total score: 0.550
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown rootkit attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown rootkit attacks): 0.000
+      Total score: 0.500
+      ---
+---Training model on removing loadmodule attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown loadmodule attacks): 0.556
+      Total score: 0.777
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown loadmodule attacks): 0.556
+      Total score: 0.778
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown loadmodule attacks): 0.556
+      Total score: 0.778
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown loadmodule attacks): 0.556
+      Total score: 0.778
+      ---
+---Training model on removing ftp_write attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown ftp_write attacks): 0.375
+      Total score: 0.687
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown ftp_write attacks): 0.375
+      Total score: 0.687
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown ftp_write attacks): 0.375
+      Total score: 0.687
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown ftp_write attacks): 0.375
+      Total score: 0.687
+      ---
+---Training model on removing multihop attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown multihop attacks): 1.000
+      Total score: 1.000
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown multihop attacks): 0.714
+      Total score: 0.857
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown multihop attacks): 0.857
+      Total score: 0.928
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown multihop attacks): 0.857
+      Total score: 0.928
+      ---
+---Training model on removing phf attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown phf attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown phf attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown phf attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown phf attacks): 0.000
+      Total score: 0.500
+      ---
+---Training model on removing perl attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown perl attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown perl attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown perl attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown perl attacks): 0.000
+      Total score: 0.500
+      ---
+---Training model on removing spy attacks---
+      Fold number: 1
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown spy attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 2
+      Cohen-Kappa-Score (known attacks): 1.000
+      Accuracy (unknown spy attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 3
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown spy attacks): 0.000
+      Total score: 0.500
+      ---
+      Fold number: 4
+      Cohen-Kappa-Score (known attacks): 0.999
+      Accuracy (unknown spy attacks): 0.000
+      Total score: 0.500
+      ---
+Time elapsed: 803.97 seconds.
